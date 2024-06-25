@@ -23,7 +23,8 @@ func Router(app *fiber.App) {
 	app.Get("/recipes", controller.AllRecipes)
 	app.Post("/recipes", controller.CreateRecipe)
 	app.Get("/recipe/:id", controller.GetRecipe)
-	app.Put("/recipe/:id", controller.UpdateRecipe)
+	// app.Put("/recipe/:id", controller.UpdateRecipe) update tanpa foto
+	app.Put("/recipe/:id", controller.UpdatePhotoRecipe)
 	app.Delete("/recipe/:id", controller.DeleteRecipe)
 
 }

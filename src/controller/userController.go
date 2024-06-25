@@ -6,7 +6,9 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"go.mod/src/config"
+	"go.mod/src/helper"
 	"go.mod/src/models"
+	"go.mod/src/services"
 	"gorm.io/gorm"
 )
 
@@ -49,6 +51,62 @@ func UpdateUser(c *fiber.Ctx) error {
 	}
 
 	var user models.User
+
+	user.Id = uint(id)
+
+	if err := c.BodyParser(&user); err != nil {
+		return err
+	}
+
+	config.DB.Model(&user).Updates(user)
+
+	return c.JSON(user)
+}
+
+func UpdatePhotoUser(c *fiber.Ctx) error {
+	//update photo beserta isinya (foto harus terisi)
+	id, _ := strconv.Atoi(c.Params("id"))
+
+	var user models.User
+
+	if err := config.DB.First(&user, id).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).SendString("User not found")
+	}
+
+	file, err := c.FormFile("Photo")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).SendString("Gagal mengunggah file: " + err.Error())
+	}
+
+	maxFileSize := int64(2 << 20)
+	if err := helper.SizeUploadValidation(file.Size, maxFileSize); err != nil {
+		return err
+	}
+
+	fileHeader, err := file.Open()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString("Gagal membuka file: " + err.Error())
+	}
+	defer fileHeader.Close()
+
+	buffer := make([]byte, 512)
+	if _, err := fileHeader.Read(buffer); err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString("Gagal membaca file: " + err.Error())
+	}
+
+	validFileTypes := []string{"image/png", "image/jpeg", "image/jpg", "application/pdf"}
+	if err := helper.TypeUploadValidation(buffer, validFileTypes); err != nil {
+		return err
+	}
+
+	fileHeader.Seek(0, 0)
+
+	uploadResult, err := services.UploadCloudinary(c, file)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	}
+
+	user.Photo = uploadResult.URL
 
 	user.Id = uint(id)
 
